@@ -4,8 +4,7 @@ use futures::future::join_all;
 use regex::Regex;
 use tokio::task;
 
-const DOMAIN: &str = "https://www.raymondjcox.com";
-const START_URL: &str = "https://www.raymondjcox.com";
+const START_URL: &str = "https://www.cnn.com";
 
 fn get_links_from_html(url: &str, html: &str) -> Vec<String> {
     let parsed_url = Url::parse(&url).unwrap();
@@ -28,6 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut visited_urls = HashSet::new();
     let mut num_visited = 0;
     let mut urls: Vec<String> = vec![String::from(START_URL)];
+    let parsed_start_url = Url::parse(START_URL).unwrap();
+    let domain = format!("https://{}", parsed_start_url.domain().unwrap());
 
     while !urls.is_empty() {
         let mut tasks = Vec::new();
@@ -44,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match links.unwrap() {
                 Ok(links) => {
                     for link in links {
-                        if visited_urls.contains(&link) || !link.starts_with(DOMAIN) {
+                        if visited_urls.contains(&link) || !link.starts_with(&domain) {
                             continue;
                         }
                         // println!("{}", link);
@@ -56,6 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+    println!("Total pages: {}", visited_urls.len());
     for url in visited_urls {
         println!("{}", url);
     }
