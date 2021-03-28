@@ -4,12 +4,12 @@ use futures::future::join_all;
 use regex::Regex;
 use tokio::task;
 
-const DOMAIN: &str = "google.com";
-const START_URL: &str = "https://www.google.com";
+const DOMAIN: &str = "https://www.raymondjcox.com";
+const START_URL: &str = "https://www.raymondjcox.com";
 
 fn get_links_from_html(url: &str, html: &str) -> Vec<String> {
     let parsed_url = Url::parse(&url).unwrap();
-    let anchor_tags = Regex::new(r#"a href="(.*?)""#).unwrap();
+    let anchor_tags = Regex::new(r#"(?s)<a.*?href="(.*?)"(.*?)</a>"#).unwrap();
     return anchor_tags.captures_iter(&html).map(|cap| String::from(parsed_url.join(cap.get(1).unwrap().as_str()).unwrap().as_str())).collect()
 }
 
@@ -32,22 +32,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     while !urls.is_empty() {
         let mut tasks = Vec::new();
         let mut urls_to_visit = Vec::new();
-        println!("Number of sites visited: {}", num_visited);
+        println!("Number of links visited: {}", num_visited);
         while !urls.is_empty() && tasks.len() < 8 {
             let url = urls.remove(0);
             urls_to_visit.push(url.clone());
             tasks.push(task::spawn(get_links(url)));
             num_visited += 1;
         }
-        println!("Visiting {} urls: {:?}", urls_to_visit.len(), urls_to_visit);
 
         for links in join_all(tasks).await {
             match links.unwrap() {
                 Ok(links) => {
                     for link in links {
-                        if visited_urls.contains(&link) || !link.contains(DOMAIN) {
+                        if visited_urls.contains(&link) || !link.starts_with(DOMAIN) {
                             continue;
                         }
+                        // println!("{}", link);
                         visited_urls.insert(link.clone());
                         urls.push(link);
                     }
@@ -55,6 +55,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Err(e) => println!("{:?}", e)
             }
         }
+    }
+    for url in visited_urls {
+        println!("{}", url);
     }
     Ok(())
 }
