@@ -1,10 +1,10 @@
 use url::Url;
+use structopt::StructOpt;
 use std::collections::HashSet;
 use futures::future::join_all;
 use regex::Regex;
 use tokio::task;
 
-const START_URL: &str = "https://www.cnn.com";
 
 fn get_links_from_html(url: &str, html: &str) -> Vec<String> {
     let parsed_url = Url::parse(&url).unwrap();
@@ -22,12 +22,21 @@ async fn get_links(url: String) -> Result<Vec<String>, Box<dyn std::error::Error
     Ok(links)
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "crawler", about = "Crawls all links on a webpage and prints the results.")]
+struct Opt {
+    #[structopt(short, long)]
+    verbose: bool,
+    start_url: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let opt = Opt::from_args();
     let mut visited_urls = HashSet::new();
     let mut num_visited = 0;
-    let mut urls: Vec<String> = vec![String::from(START_URL)];
-    let parsed_start_url = Url::parse(START_URL).unwrap();
+    let mut urls: Vec<String> = vec![opt.start_url.clone()];
+    let parsed_start_url = Url::parse(&opt.start_url).unwrap();
     let domain = format!("https://{}", parsed_start_url.domain().unwrap());
 
     while !urls.is_empty() {
@@ -48,7 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if visited_urls.contains(&link) || !link.starts_with(&domain) {
                             continue;
                         }
-                        // println!("{}", link);
+                        if opt.verbose {
+                            println!("{}", link);
+                        }
                         visited_urls.insert(link.clone());
                         urls.push(link);
                     }
