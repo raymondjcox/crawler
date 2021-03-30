@@ -9,12 +9,12 @@ use tokio::task;
 fn get_links_from_html(url: &str, html: &str) -> Vec<String> {
     let parsed_url = Url::parse(&url).unwrap();
     let anchor_tags = Regex::new(r#"(?s)<a.*?href="(.*?)"(.*?)</a>"#).unwrap();
-    return anchor_tags.captures_iter(&html).map(|cap| String::from(parsed_url.join(cap.get(1).unwrap().as_str()).unwrap().as_str())).collect()
+    return anchor_tags.captures_iter(&html).map(|cap| parsed_url.join(cap.get(1).unwrap().as_str()).unwrap().to_string()).collect()
 }
 
 
 async fn get_links(url: String) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
-    let html = reqwest::get(url.clone())
+    let html = reqwest::get(&url)
         .await?
         .text()
         .await?;
@@ -30,23 +30,24 @@ struct Opt {
     start_url: String,
 }
 
+fn get_domain_with_scheme(url: &str) -> String {
+    let parsed_url = Url::parse(url).unwrap();
+    format!("{}://{}", parsed_url.scheme(), parsed_url.domain().unwrap())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
     let mut visited_urls = HashSet::new();
     let mut num_visited = 0;
-    let mut urls: Vec<String> = vec![opt.start_url.clone()];
-    let parsed_start_url = Url::parse(&opt.start_url).unwrap();
-    let domain = format!("https://{}", parsed_start_url.domain().unwrap());
+    let domain_with_scheme = get_domain_with_scheme(&opt.start_url);
+    let mut urls: Vec<String> = vec![opt.start_url];
 
     while !urls.is_empty() {
         let mut tasks = Vec::new();
-        let mut urls_to_visit = Vec::new();
         println!("Number of links visited: {}", num_visited);
         while !urls.is_empty() && tasks.len() < 8 {
-            let url = urls.remove(0);
-            urls_to_visit.push(url.clone());
-            tasks.push(task::spawn(get_links(url)));
+            tasks.push(task::spawn(get_links(urls.remove(0))));
             num_visited += 1;
         }
 
@@ -54,13 +55,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match links.unwrap() {
                 Ok(links) => {
                     for link in links {
-                        if visited_urls.contains(&link) || !link.starts_with(&domain) {
+                        if visited_urls.contains(&link) || !link.starts_with(&domain_with_scheme) {
                             continue;
                         }
                         if opt.verbose {
                             println!("{}", link);
                         }
-                        visited_urls.insert(link.clone());
+                        visited_urls.insert(link.to_string());
                         urls.push(link);
                     }
                 },
