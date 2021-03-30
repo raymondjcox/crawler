@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use url::Url;
 use structopt::StructOpt;
 use std::collections::HashSet;
@@ -7,9 +10,11 @@ use tokio::task;
 
 
 fn get_links_from_html(url: &str, html: &str) -> Vec<String> {
+    lazy_static! {
+        static ref ANCHOR_TAGS: Regex = Regex::new(r#"(?s)<a.*?href="(.*?)"(.*?)</a>"#).unwrap();
+    }
     let parsed_url = Url::parse(&url).unwrap();
-    let anchor_tags = Regex::new(r#"(?s)<a.*?href="(.*?)"(.*?)</a>"#).unwrap();
-    return anchor_tags.captures_iter(&html).map(|cap| parsed_url.join(cap.get(1).unwrap().as_str()).unwrap().to_string()).collect()
+    return ANCHOR_TAGS.captures_iter(&html).map(|cap| parsed_url.join(cap.get(1).unwrap().as_str()).unwrap().to_string()).collect()
 }
 
 
